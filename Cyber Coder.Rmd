@@ -1,0 +1,96 @@
+---
+title: "Cyber Coder & Simply Hired"
+author: "Fan Xu"
+date: "10/20/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Packages, message=FALSE}
+library(rvest)
+library(stringr)
+library(tidyverse)
+library(RCurl)
+library(kableExtra)
+```
+
+
+
+```{r simply hired}
+#simplyhired search page
+
+base_url <- 'https://www.cybercoders.com/'
+page <- 0
+terms <- 'data+scientist'
+job_title <- character()
+job_skill <- character()
+job_location <- character()
+job_salary <-character()
+
+
+
+while(TRUE) {
+  page = page+1
+  #url <- getURL('https://www.cybercoders.com/search/?page=1&searchterms=data+scientist&searchlocation=&newsearch=true&originalsearch=true&sorttype=')
+  url <- getURL(str_c(base_url,'search/?page=',page,'&searchterms=',terms,'&searchlocation=&newsearch=true&originalsearch=true&sorttype='))
+  html_raw <- read_html(url)
+  
+  
+  job_title_page <- html_raw %>%
+    html_nodes("[class='job-title']") %>%
+    html_text() %>%
+    str_remove_all('\\r\\n') %>%
+    str_trim()
+
+  
+  job_skill_page <- html_raw %>%
+    html_nodes("[class='skill-list']") %>% 
+    lapply(function(x) html_nodes(x, "[class='skill-name']")) %>%
+    lapply(function(x) html_text(x)) %>%
+    lapply(function(x) str_c(x,collapse = ', ')) %>%
+    unlist()
+  
+  
+  job_location_page <- html_raw %>%
+    html_nodes("[class='location']") %>%
+    html_text() 
+  
+  job_salary_page <- html_raw %>%
+    html_nodes("[class='wage']") %>%
+    html_text() %>%
+    str_replace('[[:alpha:][:punct:]]+ (.+)$','\\1') %>%
+    str_remove_all(' ')
+
+
+  
+  if (length(job_title_page)==0) {
+    page = page -1
+    break
+  }
+  
+  job_title <- c(job_title, job_title_page)
+  job_skill <- c(job_skill, job_skill_page)
+  job_location <-c(job_location, job_location_page)
+  job_salary <-c(job_salary, job_salary_page)
+  
+
+  print(str_c(' Scrapping for Page: ',page, ' is done!'))
+  
+}
+
+
+df_cyber_coders <- as.data.frame(cbind(job_title,job_skill, job_location, job_salary), stringsAsFactors = FALSE)
+str(df_cyber_coders)
+df_cyber_coders
+
+#archive data into csv
+write.table(df_cyber_coders, "df_cyber_coders.csv", sep = ",", col.names = !file.exists("df_cyber_coders.csv"), row.names = FALSE,append = FALSE)
+
+```
+
+
+
+

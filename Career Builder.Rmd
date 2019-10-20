@@ -1,0 +1,125 @@
+---
+title: "Career Builder"
+author: "Fan Xu"
+date: "10/20/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Packages, message=FALSE}
+library(rvest)
+library(stringr)
+library(tidyverse)
+library(RCurl)
+library(kableExtra)
+```
+
+
+
+```{r simply hired}
+
+#career builder
+
+base_url <- 'https://www.careerbuilder.com'
+page_start = 1
+page_limit = 50
+terms <- 'data+scientist'
+
+df_career_builder <- data.frame(job_title=character(),
+                   job_skill=character(),
+                   job_company=character(),
+                   job_location=character(),
+                   job_salary=character(),
+                   stringsAsFactors = FALSE)
+
+for (page in page_start:page_limit){
+#url <- 'https://www.careerbuilder.com/jobs?keywords=data+scientist&location=&page_number=1'
+
+url <- str_c(base_url,'/jobs?keywords=',terms,'&location=&page_number=',page)
+
+job_url <- read_html(url) %>%
+  html_nodes("[class='data-results-content block job-listing-item']") %>%
+  html_attr('href') %>%
+  str_c(base_url,.,'')
+
+#job_url
+
+
+for (i in (1:length(job_url))) {
+
+  html_raw <- read_html(job_url[i])  
+  
+  job_url[1]
+  
+  job_title_page <- html_raw %>%
+    html_nodes(xpath = "//title") %>%
+    html_text() %>%
+    str_remove_all('\\n') %>%
+    str_replace('(.*) Job in (.*) -(.*)$','\\1')
+   
+
+  
+  job_skill_page <- html_raw %>%
+    html_nodes("[class='check-bubble']") %>%
+    html_text() %>%
+    str_c(collapse = ', ')
+  if (length(job_skill_page)==0) {
+    job_skill_page = NA
+  }
+  
+  
+  job_location_page <- html_raw %>%
+    html_nodes(xpath = "//title") %>%
+    html_text() %>%
+    str_remove_all('\\n') %>%
+    str_replace('(.*) Job in (.*) -(.*)$','\\2')
+  if (length(job_location_page)==0) {
+    job_location_page = NA
+  }
+  
+  
+  job_company_page <- html_raw %>%
+    html_nodes(xpath = "//title") %>%
+    html_text() %>%
+    str_remove_all('\\n') %>%
+    str_replace('(.*) Job in (.*) -(.*)$','\\3') %>%
+    str_trim()
+  if (length(job_company_page)==0) {
+    job_company_page = NA
+  }
+    
+  
+  job_salary_page <- html_raw %>%
+    html_nodes("[class='salary-estimator_bubble_salary']") %>%
+    html_text() 
+  if (length(job_salary_page)==0) {
+    job_salary_page = NA
+  }
+  
+
+print(c('Progress: Page: ',page,' Job Title: ',job_title_page, ' is done!'))  
+
+  
+df_career_builder <- add_row(df_career_builder,
+                   job_title=job_title_page,
+                   job_skill=job_skill_page,
+                   job_company=job_company_page,
+                   job_location=job_location_page,
+                   job_salary=job_salary_page)  
+  
+
+closeAllConnections()
+Sys.sleep(1)
+}
+Sys.sleep(1)
+}
+
+df_career_builder
+
+write.table(df_career_builder, "df_career_builder.csv", sep = ",", col.names = !file.exists("df_career_builder.csv"), row.names = FALSE,append = TRUE)
+
+
+```

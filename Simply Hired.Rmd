@@ -1,0 +1,130 @@
+---
+title: "Cyber Coder & Simply Hired"
+author: "Fan Xu"
+date: "10/20/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Packages, message=FALSE}
+library(rvest)
+library(stringr)
+library(tidyverse)
+library(RCurl)
+library(kableExtra)
+```
+
+
+
+```{r simply hired}
+#simplyhired search page
+
+base_url <- 'https://www.simplyhired.com'
+page_start <- 1
+page_limit <-200
+terms <- 'data+scientist'
+
+#initiate variables and dataframe as data containers
+job_title <- character()
+job_skill <- character()
+job_location <- character()
+job_salary <-character()
+job_company <-character()
+
+df_simply_hired <- data.frame(job_title=character(),
+                   job_skill=character(),
+                   job_company=character(),
+                   job_location=character(),
+                   job_salary=character(),
+                   stringsAsFactors = FALSE)
+
+row_cnt = 0
+
+
+#loop each page
+for (page in page_start:page_limit) {
+  
+  #get URLs of individual job post
+  url <- getURL (str_c(base_url,'/search?q=', terms, '&pn=', page, '&l=&job=-q6yR-atece9p8LQvm2yP8xIX3VcYfRC9wsdPgSS0nWHIG3f2EZOxA'))
+  job_url <- read_html(url) %>%
+  html_nodes("[class='card-link']") %>%
+  html_attr('href') %>%
+  str_c(base_url,.,'')
+  
+  #print progress
+  print(str_c('Current Page: ', page, sep = ''))
+  
+  #loop job posts in each page (19 post per page)
+  for (i in (1:length(job_url))) {
+    html_raw <- read_html(job_url[i])
+  
+    #job title
+    job_title_page <- html_raw %>%
+      html_nodes(xpath = '//button[@title]') %>%
+      html_attr('title') %>%
+      .[1]  
+ 
+    #job skill
+    job_skill_page <- html_raw %>%
+      html_nodes(xpath = "//span[text()='Skills']/following-sibling::ul[1]") %>%
+      html_nodes("[class='nav-item']") %>%
+      html_text() %>%
+      str_c(collapse = ', ')
+    if (length(job_skill_page)==0) {
+      job_skill_page = NA
+    }
+
+    #job location
+    job_location_page <- html_raw %>%
+      html_nodes("[class = 'location']") %>%
+      html_text()
+    if (length(job_location_page)==0) {
+      job_location_page = NA
+    }
+
+    #job salary
+    job_salary_page <-html_raw %>%
+        html_nodes("[style='color:#666666']") %>%
+        html_text() %>%
+        str_remove_all('[A-z: ]') %>%
+        str_replace_all('\\,000', 'k')
+    if (length(job_salary_page)==0) {
+      job_salary_page = NA
+    }
+
+    #job company
+    job_company_page <- html_raw %>%
+        html_nodes("[class='company']") %>%
+        html_text()
+    if (length(job_company_page)==0) {
+      job_company_page = NA
+    }
+
+  #append data elements into data frame
+  df_simply_hired <- add_row(df_simply_hired,
+                   job_title=job_title_page,
+                   job_skill=job_skill_page,
+                   job_company=job_company_page,
+                   job_location=job_location_page,
+                   job_salary=job_salary_page)
+  
+  
+  #print progress
+  row_cnt = row_cnt+1
+  print(str_c('Task ',row_cnt,' Scrapping for: ',job_title_page, ' is done!', sep = ''))
+  Sys.sleep(1)  
+}
+  closeAllConnections()
+  Sys.sleep(1)
+}
+
+
+df_simply_hired
+
+#archive data into csv
+write.table(df_simply_hired, "df_simply_hired2.csv", sep = ",", col.names = !file.exists("df_simply_hired2.csv"), row.names = FALSE,append = TRUE)
+
+```
